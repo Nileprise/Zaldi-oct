@@ -1,6 +1,18 @@
-# Zaldi Driver & Dispatch Platform (Android)
+# Zaldi 3-App Suite: Customer App, Driver App & Admin App (Android)
 
-Zaldi is an end-to-end mobility, logistics dispatch, and fleet telemetry application built with **Kotlin**, **Jetpack Compose (Material 3)**, **Room SQLite**, **Google Play Services Location**, and **OkHttp**.
+Zaldi is a complete 3-application mobility, logistics dispatch, and fleet telemetry suite built with **Kotlin**, **Jetpack Compose (Material 3)**, **Room SQLite**, **Google Play Services Location**, **Firebase Auth**, and **OkHttp**.
+
+## 3 Separate Applications Included
+
+1. **Application #1 — Zaldi Customer App (`apps/customer` • `MainActivity`)**
+   - **Launcher Label**: `Zaldi Customer`
+   - **Dedicated Customer Tabs**: `Book Ride` (`MapView`, `PickupInput`, `DropInput`, `LocationSuggestions`) • `Vehicles` (`VehicleSelector`, `FareCard`) • `Track` (`TrackingMap`, `DriverMarker`, `RouteLine`, `ETA`, 4-digit OTP PIN) • `Payment` (`PaymentCard`, UPI/Wallet/Card/Cash, 5-Star Rating) • `History` (`RideHistory`) • `Profile` (`Profile`, `OTP`, `Notifications`, `Support`).
+2. **Application #2 — Zaldi Driver App (`apps/driver` • `DriverAppActivity`)**
+   - **Launcher Label**: `Zaldi Driver`
+   - **Dedicated Driver Tabs**: `Driver Home` (`OnlineToggle`, `DriverMap` Surge Heatmap, `BookingRequest` 15s Offer Overlay) • `Active Trip` (`Navigation`, OTP PIN Verification, Proof of Delivery) • `Earnings` (`EarningsCard`, Offline SQLite Earnings Logs & Sync, Instant Payout) • `KYC & Docs` (`DriverStatus`) • `Vehicle & Profile` (`VehicleCard`, Fleet Switcher, Reviews).
+3. **Application #3 — Zaldi Admin App (`apps/admin` • `AdminAppActivity`)**
+   - **Launcher Label**: `Zaldi Admin`
+   - **Dedicated Admin Tabs**: `Dashboard` (`DashboardCard`, `MapPanel`, Live Fleet KPIs, React WebView Admin Console) • `Bookings` (`BookingTable`, `LiveTracking`, Active Trip Controller, `POST /api/internal/dispatch` Console) • `Drivers` (`DriverTable`, `VehicleTable`, KYC Approval, Online Toggle, Register New Driver) • `Matching` (`Pricing`, `ServiceAreas`, 8-Step Redis Driver Matching Engine) • `Reports` (`PaymentTable`, `CustomerTable`, Financial Ledger, Reviews & Complaints).
 
 ## Key Features
 

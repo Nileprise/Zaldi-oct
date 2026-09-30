@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.OpenInNew
@@ -53,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.core.network.ZaldiDispatchNetworkClient
+import com.example.core.utils.GeoUtils
 import com.example.features.authentication.ZaldiFirebaseAuthManager
 import com.example.services.localstorage.DriverProfileEntity
 import com.example.services.localstorage.RideOrderEntity
@@ -62,7 +65,7 @@ import com.example.ui.theme.MyApplicationTheme
 import com.google.android.gms.location.LocationServices
 
 /**
- * Standalone Android Launcher Activity #2: Zaldi Driver Application (`apps/driver`).
+ * Standalone Android Activity #2: Zaldi Driver Application (`apps/driver`).
  */
 class DriverAppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,7 +99,7 @@ class DriverAppActivity : ComponentActivity() {
 }
 
 /**
- * Standalone Android Launcher Activity #3: Zaldi Admin Application (`apps/admin`).
+ * Standalone Android Activity #3: Zaldi Admin Application (`apps/admin`).
  */
 class AdminAppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -130,9 +133,9 @@ class AdminAppActivity : ComponentActivity() {
 }
 
 /**
- * 3-Application Launcher Hub (`apps/customer`, `apps/driver`, `apps/admin`).
- * Lets the user inspect and launch each of the 3 separate applications either in-place (0ms)
- * or as a separate Android Activity (`MainActivity`, `DriverAppActivity`, `AdminAppActivity`).
+ * Complete 3-Application Suite Hub (`apps/customer`, `apps/driver`, `apps/admin`).
+ * Lets the user view, test, and open all 3 separate applications from one unified command center
+ * or launch each application in its own dedicated Android Activity window.
  */
 @Composable
 fun ZaldiThreeAppsHubScreen(
@@ -141,7 +144,10 @@ fun ZaldiThreeAppsHubScreen(
     onlineDriversCount: Int,
     activeOrder: RideOrderEntity?,
     totalOrdersCount: Int,
-    onOpenAppInPlace: (ZaldiApplicationId) -> Unit
+    onOpenAppInPlace: (ZaldiApplicationId) -> Unit,
+    onInstantCustomerBook: () -> Unit = {},
+    onAdvanceActiveOrder: (RideOrderEntity) -> Unit = {},
+    onRevertActiveOrder: (RideOrderEntity?) -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -164,18 +170,84 @@ fun ZaldiThreeAppsHubScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "ZALDI 3-APPLICATION SUITE • SEPARATE APPS",
+                    text = "COMPLETE ZALDI 3-APPLICATION PLATFORM",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = "All 3 applications (Customer App, Driver App, Admin App) have separate navigation bars, separate Android Launcher Activities, and share real-time SQLite + Dispatch synchronization.",
+                    text = "1. Customer App (apps/customer) • 2. Driver App (apps/driver) • 3. Admin App (apps/admin) — All 3 applications are connected in real time via Room SQLite & Dispatch.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                // Live Cross-App Workflow Controller (Customer -> Driver -> Admin)
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (activeOrder != null) {
+                                    "LIVE TRIP #${activeOrder.orderId.take(6)} • ${activeOrder.status.replace("_", " ")}"
+                                } else {
+                                    "NO ACTIVE TRIP • READY FOR 1-TAP CUSTOMER BOOKING"
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontWeight = FontWeight.Black
+                            )
+                            Text(
+                                text = activeOrder?.let {
+                                    "${it.pickupAddress} → ${it.dropoffAddress} • ${GeoUtils.formatCurrency(it.totalPayout)} • PIN: ${it.riderPin}"
+                                } ?: "Tap '1-Tap Book' to create a Customer booking and broadcast to Driver & Admin apps",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        if (activeOrder == null) {
+                            Button(
+                                onClick = onInstantCustomerBook,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = Color(0xFF0B0F17)
+                                )
+                            ) {
+                                Icon(imageVector = Icons.Default.Bolt, contentDescription = null)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("1-Tap Book", fontWeight = FontWeight.Black)
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedButton(onClick = { onRevertActiveOrder(activeOrder) }) {
+                                    Text("← Prev")
+                                }
+                                Button(
+                                    onClick = { onAdvanceActiveOrder(activeOrder) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                        contentColor = Color(0xFF06281E)
+                                    )
+                                ) {
+                                    Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Next Step →", fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -189,7 +261,7 @@ fun ZaldiThreeAppsHubScreen(
             statusSummary = activeOrder?.let {
                 "Active Booking #${it.orderId.take(6)} (${it.status}) • OTP PIN: ${it.riderPin}"
             } ?: "Ready to Book • $onlineDriversCount Drivers Online in 5km Radius",
-            featuresList = "Pages: Search & Map • VehicleSelector & FareCard • LiveTracking & ETA • Payment & 5★ Rating • RideHistory • Profile & OTP",
+            featuresList = "6 Dedicated Tabs: Book Ride (MapView, Pickup/Drop, Suggestions) • Vehicles & Fare • Live Tracking & ETA • Payment & 5★ Rating • Ride History • Profile & OTP",
             openTestTag = "hub_open_customer_app",
             onOpenInPlace = { onOpenAppInPlace(ZaldiApplicationId.CUSTOMER_APP) },
             onLaunchSeparateActivity = {
@@ -208,7 +280,7 @@ fun ZaldiThreeAppsHubScreen(
             accentColor = MaterialTheme.colorScheme.secondary,
             icon = Icons.Default.LocalShipping,
             statusSummary = "Active Driver: ${activeDriver?.fullName ?: "Mateo Vance"} • ${if (activeDriver?.isOnline == true) "ONLINE" else "OFFLINE"} • ★ ${activeDriver?.rating ?: 4.94f}",
-            featuresList = "Pages: DriverHome & Surge Heatmap • ActiveTrip & Navigation • Earnings & Offline SQLite Sync • KYC & Docs • Vehicle & Profile",
+            featuresList = "5 Dedicated Tabs: Driver Home & Surge Heatmap • Active Trip & Turn-by-Turn Navigation • Earnings & Offline SQLite Sync • KYC & Docs • Vehicle & Profile",
             openTestTag = "hub_open_driver_app",
             onOpenInPlace = { onOpenAppInPlace(ZaldiApplicationId.DRIVER_APP) },
             onLaunchSeparateActivity = {
@@ -225,7 +297,7 @@ fun ZaldiThreeAppsHubScreen(
             accentColor = MaterialTheme.colorScheme.tertiary,
             icon = Icons.Default.Security,
             statusSummary = "Fleet: $onlineDriversCount/$allDriversCount Online • $totalOrdersCount SQLite Trips • 8-Step Redis Matcher Ready",
-            featuresList = "Pages: Admin Dashboard & MapPanel • Bookings & Live Control • DriverTable & KYC Approval • Pricing & 8-Step Match • Payments & Reports",
+            featuresList = "5 Dedicated Tabs: Admin Dashboard & MapPanel • Bookings & Live Control • DriverTable & KYC Approval • Pricing & 8-Step Match • Payments & Reports",
             openTestTag = "hub_open_admin_app",
             onOpenInPlace = { onOpenAppInPlace(ZaldiApplicationId.ADMIN_APP) },
             onLaunchSeparateActivity = {
@@ -332,7 +404,7 @@ private fun StandaloneAppLauncherCard(
                 Button(
                     onClick = onOpenInPlace,
                     modifier = Modifier
-                        .weight(0.58f)
+                        .weight(0.62f)
                         .height(48.dp)
                         .testTag(openTestTag),
                     colors = ButtonDefaults.buttonColors(
@@ -348,7 +420,7 @@ private fun StandaloneAppLauncherCard(
                 OutlinedButton(
                     onClick = onLaunchSeparateActivity,
                     modifier = Modifier
-                        .weight(0.42f)
+                        .weight(0.38f)
                         .height(48.dp)
                 ) {
                     Icon(
@@ -357,7 +429,7 @@ private fun StandaloneAppLauncherCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("New Activity", fontWeight = FontWeight.Bold)
+                    Text("New Window", fontWeight = FontWeight.Bold)
                 }
             }
         }

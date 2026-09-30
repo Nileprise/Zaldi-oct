@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZALDI — Complete 3-App Suite (1. Customer App • 2. Driver App • 3. Admin App)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { background-color: #0B0F17; color: #F8FAFC; font-family: system-ui, -apple-system, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0B0F17; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen bg-[#0B0F17] text-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    const PRESET_ROUTES = [
+      {
+        label: "Nalgonda → Hyderabad (105 km)",
+        pickup: "Clock Tower Center, Nalgonda",
+        pickupGeo: "TEPG7B2",
+        drop: "SLN Terminus, Gachibowli, Hyderabad",
+        dropGeo: "TEPX4M9",
+        distanceKm: 105.0,
+        cargo: "Fragile Load"
+      },
+      {
+        label: "Hitech City → RGIA Airport (32.4 km)",
+        pickup: "Cyber Towers, Hitech City, Hyderabad",
+        pickupGeo: "TEPX6K1",
+        drop: "RGIA Cargo Terminal, Shamshabad",
+        dropGeo: "TEPW2R8",
+        distanceKm: 32.4,
+        cargo: "Express Air Parcel"
+      },
+      {
+        label: "SF Mission → Biotech Hub (6.8 km)",
+        pickup: "450 Mission St, SF Transit Tower",
+        pickupGeo: "9Q8YYK9",
+        drop: "1600 Owens St, Mission Bay Hub",
+        dropGeo: "9Q8YYE3",
+        distanceKm: 6.8,
+        cargo: "Cold Chain"
+      },
+      {
+        label: "Banjara Hills → Secunderabad (11.2 km)",
+        pickup: "Road No. 12, Banjara Hills, Hyderabad",
+        pickupGeo: "TEPX5H4",
+        drop: "Secunderabad Railway Parcel Hub",
+        dropGeo: "TEPX9Q2",
+        distanceKm: 11.2,
+        cargo: "Commercial Goods"
+      }
+    ];
+
+    const VEHICLE_OPTIONS = [
+      { id: "BIKE", name: "Zaldi Bike Express", subtitle: "Instant 2W Courier & Docs", capacityKg: 20, baseFare: 12, perKm: 0.65, etaMin: 2, tier: "ZALDI_EV" },
+      { id: "AUTO", name: "Zaldi 3W Auto Cargo", subtitle: "Urban Retail Boxes", capacityKg: 250, baseFare: 24, perKm: 0.95, etaMin: 4, tier: "ZALDI_PRIME" },
+      { id: "EV_VAN", name: "Zaldi EV Cargo Van", subtitle: "Cold-Chain & Fragile Pallets", capacityKg: 750, baseFare: 42, perKm: 1.25, etaMin: 5, tier: "ZALDI_EV" },
+      { id: "TRUCK", name: "Zaldi Mini Truck XL", subtitle: "Intercity Hub & Heavy Freight", capacityKg: 1500, baseFare: 65, perKm: 1.65, etaMin: 7, tier: "ZALDI_VAN" }
+    ];
+
+    function ZaldiSuiteApp() {
+      const initialAppParam = new URLSearchParams(window.location.search).get("app") || "CUSTOMER_APP";
+      // Top-level App Switcher: "CUSTOMER_APP" | "DRIVER_APP" | "ADMIN_APP" | "SPLIT_ALL_3"
+      const [activeApp, setActiveApp] = useState(initialAppParam);
+      const [navStack, setNavStack] = useState([]);
+
+      // Sub-navigation tabs for each of the 3 separate applications
+      const [customerTab, setCustomerTab] = useState("HOME_SEARCH"); // HOME_SEARCH, VEHICLE_FARE, LIVE_TRACKING, PAYMENT, RIDE_HISTORY, PROFILE
+      const [driverTab, setDriverTab] = useState("DRIVER_HOME");     // DRIVER_HOME, ACTIVE_TRIP, EARNINGS, KYC_DOCS, VEHICLE_PROFILE
+      const [adminTab, setAdminTab] = useState("DASHBOARD");         // DASHBOARD, BOOKINGS, DRIVERS, MATCHING, REPORTS
+
+      // Shared Real-Time State (Simulating Room SQLite + Redis GEO + WebSocket across all 3 apps)
+      const [drivers, setDrivers] = useState([
+        { id: "drv-mateo-001", name: "Mateo Vance", phone: "+1 (415) 890-4210", vehicle: "2025 Tesla Semi / EV Van", plate: "ZLD-904E", capacityKg: 750, tier: "ZALDI_EV", rating: 4.94, isOnline: true, kycStatus: "VERIFIED", wallet: 428.60, geohash: "9Q8YYK9" },
+        { id: "drv-ravi-002", name: "Ravi Teja", phone: "+91 98480-32910", vehicle: "2025 Tata Ace EV Cargo", plate: "TS05-Z891", capacityKg: 1200, tier: "ZALDI_VAN", rating: 4.91, isOnline: true, kycStatus: "VERIFIED", wallet: 315.40, geohash: "TEPG7B2" },
+        { id: "drv-elena-003", name: "Elena Rostova", phone: "+1 (415) 772-1904", vehicle: "2024 Rivian EDV-500", plate: "CA-EV772", capacityKg: 900, tier: "ZALDI_PRIME", rating: 4.98, isOnline: true, kycStatus: "VERIFIED", wallet: 612.00, geohash: "9Q8YYE3" }
+      ]);
+      const [selectedDriverId, setSelectedDriverId] = useState("drv-mateo-001");
+
+      const [orders, setOrders] = useState([
+        {
+          id: "trp-9042a1",
+          customerName: "Vikram Aditya",
+          pickup: "Clock Tower Center, Nalgonda",
+          drop: "SLN Terminus, Gachibowli, Hyderabad",
+          distanceKm: 105.0,
+          fare: 173.25,
+          cargo: "Fragile Load",
+          weightKg: 320,
+          vehicleTier: "ZALDI_EV",
+          riderPin: "4829",
+          status: "ACCEPTED", // INCOMING, ACCEPTED, ARRIVED_PICKUP, IN_PROGRESS, COMPLETED
+          driverId: "drv-mateo-001",
+          createdAt: "Just now"
+        },
+        {
+          id: "trp-8831b4",
+          customerName: "Ananya Reddy",
+          pickup: "Cyber Towers, Hitech City, Hyderabad",
+          drop: "RGIA Cargo Terminal, Shamshabad",
+          distanceKm: 32.4,
+          fare: 82.50,
+          cargo: "Express Air Parcel",
+          weightKg: 45,
+          vehicleTier: "ZALDI_PRIME",
+          riderPin: "7194",
+          status: "COMPLETED",
+          driverId: "drv-ravi-002",
+          createdAt: "18 mins ago"
+        }
+      ]);
+
+      const [ledger, setLedger] = useState([
+        { id: 1, title: "Trip #trp-8831b4 Settlement", route: "Hitech City → RGIA Airport", amount: 82.50, method: "UPI / Zaldi Pay", syncStatus: "SYNCED" },
+        { id: 2, title: "Offline Highway Corridor Delivery", route: "Nalgonda → Suryapet Hub", amount: 64.00, method: "CASH_COLLECTED", syncStatus: "PENDING_OFFLINE_SYNC" }
+      ]);
+
+      // Customer Form State
+      const [customerName, setCustomerName] = useState("Vikram Aditya");
+      const [customerPhone, setCustomerPhone] = useState("+91 98480-11223");
+      const [pickup, setPickup] = useState(PRESET_ROUTES[0].pickup);
+      const [drop, setDrop] = useState(PRESET_ROUTES[0].drop);
+      const [distanceKm, setDistanceKm] = useState(PRESET_ROUTES[0].distanceKm);
+      const [selectedVehicleId, setSelectedVehicleId] = useState("EV_VAN");
+      const [cargoType, setCargoType] = useState("Fragile Load");
+      const [cargoWeightKg, setCargoWeightKg] = useState(320);
+      const [paymentMethod, setPaymentMethod] = useState("UPI / Zaldi Pay");
+      const [ratingStars, setRatingStars] = useState(5);
+      const [banner, setBanner] = useState("Zaldi 3-App Suite Active • Customer, Driver, and Admin apps synced in real time.");
+
+      const activeDriver = useMemo(
+        () => drivers.find(d => d.id === selectedDriverId) || drivers[0],
+        [drivers, selectedDriverId]
+      );
+
+      const activeOrder = useMemo(
+        () => orders.find(o => ["INCOMING", "ACCEPTED", "ARRIVED_PICKUP", "IN_PROGRESS"].includes(o.status)) || null,
+        [orders]
+      );
+
+      const selectedVehicle = useMemo(
+        () => VEHICLE_OPTIONS.find(v => v.id === selectedVehicleId) || VEHICLE_OPTIONS[2],
+        [selectedVehicleId]
+      );
+
+      const calculatedFare = useMemo(
+        () => Math.round((selectedVehicle.baseFare + distanceKm * selectedVehicle.perKm) * 100) / 100,
+        [selectedVehicle, distanceKm]
+      );
+
+      const pushHistory = () => {
+        setNavStack(prev => [...prev.slice(-15), { activeApp, customerTab, driverTab, adminTab }]);
+      };
+
+      const navigateToApp = (appId) => {
+        pushHistory();
+        setActiveApp(appId);
+      };
+
+      const navigatePrevious = () => {
+        if (navStack.length > 0) {
+          const last = navStack[navStack.length - 1];
+          setNavStack(prev => prev.slice(0, -1));
+          setActiveApp(last.activeApp);
+          setCustomerTab(last.customerTab);
+          setDriverTab(last.driverTab);
+          setAdminTab(last.adminTab);
+        }
+      };
+
+      // Book a new Customer Ride -> Dispatches to Driver App & Admin App
+      const handleBookRide = () => {
+        const newOrder = {
+          id: "trp-" + Math.random().toString(16).slice(2, 8),
+          customerName,
+          pickup,
+          drop,
+          distanceKm,
+          fare: calculatedFare,
+          cargo: cargoType,
+          weightKg: cargoWeightKg,
+          vehicleTier: selectedVehicle.tier,
+          riderPin: String(Math.floor(1000 + Math.random() * 9000)),
+          status: "INCOMING",
+          driverId: activeDriver.id,
+          createdAt: "Just now"
+        };
+        setOrders(prev => [newOrder, ...prev]);
+        setCustomerTab("LIVE_TRACKING");
+        setBanner(`POST /api/internal/dispatch (200 OK in 9ms) → zaldi_ping sent to Driver ${activeDriver.name} (#${newOrder.id})`);
+      };
+
+      // Advance Trip Step forward (INCOMING -> ACCEPTED -> ARRIVED_PICKUP -> IN_PROGRESS -> COMPLETED)
+      const handleAdvanceOrder = (orderId) => {
+        setOrders(prev => prev.map(o => {
+          if (o.id !== orderId) return o;
+          const nextMap = {
+            INCOMING: "ACCEPTED",
+            ACCEPTED: "ARRIVED_PICKUP",
+            ARRIVED_PICKUP: "IN_PROGRESS",
+            IN_PROGRESS: "COMPLETED"
+          };
+          const nextStatus = nextMap[o.status] || "COMPLETED";
+          if (nextStatus === "COMPLETED") {
+            setLedger(l => [
+              { id: Date.now(), title: `Trip #${o.id} Completed`, route: `${o.pickup} → ${o.drop}`, amount: o.fare, method: paymentMethod, syncStatus: "SYNCED" },
+              ...l
+            ]);
+          }
+          setBanner(`Trip #${o.id} advanced: ${o.status} → ${nextStatus}`);
+          return { ...o, status: nextStatus };
+        }));
+      };
+
+      // Revert Trip Step backward (Previous Step)
+      const handleRevertOrder = (orderId) => {
+        setOrders(prev => prev.map(o => {
+          if (o.id !== orderId) return o;
+          const prevMap = {
+            COMPLETED: "IN_PROGRESS",
+            IN_PROGRESS: "ARRIVED_PICKUP",
+            ARRIVED_PICKUP: "ACCEPTED",
+            ACCEPTED: "INCOMING"
+          };
+          const prevStatus = prevMap[o.status] || "INCOMING";
+          setBanner(`Trip #${o.id} reverted to previous step: ${prevStatus}`);
+          return { ...o, status: prevStatus };
+        }));
+      };
+
+      const renderCustomerApp = () => (
+        <div className="space-y-4">
+          {/* Customer App Header */}
+          <div className="bg-slate-900/90 border border-amber-500/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 text-xs font-black rounded bg-amber-400 text-slate-950">APPLICATION 1</span>
+                <h2 className="text-lg font-black text-white">ZALDI CUSTOMER APP</h2>
+                <code className="text-xs px-2 py-0.5 rounded bg-slate-800 text-emerald-400">apps/customer</code>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {customerName} ({customerPhone}) • ★ 4.97 • {drivers.filter(d => d.isOnline).length} Verified Drivers Within 5km
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {activeOrder && (
+                <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-bold">
+                  LIVE TRIP #{activeOrder.id}: {activeOrder.status} (PIN: {activeOrder.riderPin})
+                </span>
+              )}
+              <button
+                onClick={handleBookRide}
+                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition"
+              >
+                ⚡ 1-Tap Book (${calculatedFare})
+              </button>
+            </div>
+          </div>
+
+          {/* Customer App Dedicated 6-Tab Navigation Bar */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800">
+            {[
+              ["HOME_SEARCH", "1. Book Ride"],
+              ["VEHICLE_FARE", "2. Vehicles & Fare"],
+              ["LIVE_TRACKING", "3. Live Track"],
+              ["PAYMENT", "4. Pay & Rate"],
+              ["RIDE_HISTORY", "5. Ride History"],
+              ["PROFILE", "6. Profile & OTP"]
+            ].map(([code, label]) => (
+              <button
+                key={code}
+                onClick={() => { pushHistory(); setCustomerTab(code); }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition ${
+                  customerTab === code
+                    ? "bg-amber-400 text-slate-950 font-black"
+                    : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Customer App Pages */}
+          {customerTab === "HOME_SEARCH" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-400">MAPVIEW.JSX • LIVE ROUTE & 5KM DRIVER RADAR</span>
+                <span className="text-xs font-bold text-amber-400">{distanceKm} km • Est. ${calculatedFare}</span>
+              </div>
+
+              {/*LocationSuggestions.jsx*/}
+              <div className="flex flex-wrap gap-2">
+                {PRESET_ROUTES.map((r, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setPickup(r.pickup);
+                      setDrop(r.drop);
+                      setDistanceKm(r.distanceKm);
+                      setCargoType(r.cargo);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                      pickup === r.pickup
+                        ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                        : "bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500"
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold">Pickup Location (PickupInput.jsx)</label>
+                  <input
+                    value={pickup}
+                    onChange={e => setPickup(e.target.value)}
+                    className="w-full mt-1 px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold">Drop-off Destination (DropInput.jsx)</label>
+                  <input
+                    value={drop}
+                    onChange={e => setDrop(e.target.value)}
+                    className="w-full mt-1 px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setCustomerTab("VEHICLE_FARE")}
+                  className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition"
+                >
+                  Select Vehicle & Fare →
+                </button>
+                <button
+                  onClick={handleBookRide}
+                  className="flex-1 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm transition"
+                >
+                  ⚡ BOOK NOW (${calculatedFare})
+                </button>
+              </div>
+            </div>
+          )}
+
+          {customerTab === "VEHICLE_FARE" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+              <h3 className="text-sm font-black text-amber-400">VEHICLESELECTOR.JSX & FARECARD.JSX</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {VEHICLE_OPTIONS.map(v => {
+                  const fare = Math.round((v.baseFare + distanceKm * v.perKm) * 100) / 100;
+                  const active = v.id === selectedVehicleId;
+                  return (
+                    <div
+                      key={v.id}
+                      onClick={() => setSelectedVehicleId(v.id)}
+                      className={`p-3.5 rounded-xl border cursor-pointer transition flex justify-between items-center ${
+                        active ? "bg-amber-400/15 border-amber-400" : "bg-slate-950 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-sm text-white">{v.name} ({v.capacityKg}kg)</div>
+                        <div className="text-xs text-slate-400">{v.subtitle} • ETA {v.etaMin}m</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-base font-black text-emerald-400">${fare}</div>
+                        <div className="text-[11px] text-slate-400">${v.perKm}/km</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                onClick={handleBookRide}
+                className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-sm transition"
+              >
+                CONFIRM BOOKING & DISPATCH DRIVER (${calculatedFare})
+              </button>
+            </div>
+          )}
+
+          {customerTab === "LIVE_TRACKING" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+              {activeOrder ? (
+                <>
+                  <div className="flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                      <span className="text-xs font-black text-emerald-400">TRACKINGMAP.JSX • STATUS: {activeOrder.status}</span>
+                      <div className="text-sm font-bold text-white mt-0.5">{activeOrder.pickup} → {activeOrder.drop}</div>
+                    </div>
+                    <span className="px-3 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-xs">
+                      OTP PIN: {activeOrder.riderPin}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                      <div className="text-xs text-slate-400">Assigned Driver (DriverCard.jsx)</div>
+                      <div className="text-sm font-bold text-white">{activeDriver.name} • ★ {activeDriver.rating} • {activeDriver.vehicle} ({activeDriver.plate})</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-black text-emerald-400">${activeOrder.fare}</div>
+                      <div className="text-xs text-slate-400">{activeOrder.distanceKm} km</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleRevertOrder(activeOrder.id)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs"
+                    >
+                      ← Prev Step
+                    </button>
+                    <button
+                      onClick={() => handleAdvanceOrder(activeOrder.id)}
+                      className="flex-1 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs"
+                    >
+                      ⚡ Advance Trip Step ({activeOrder.status}) →
+                    </button>
+                    <button
+                      onClick={() => setCustomerTab("PAYMENT")}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-bold text-xs"
+                    >
+                      Go to Payment →
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-6 space-y-3">
+                  <p className="text-sm text-slate-400">No active ride in progress. All recent trips are completed!</p>
+                  <button
+                    onClick={handleBookRide}
+                    className="px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-black text-xs"
+                  >
+                    ⚡ Book New Ride Now
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {customerTab === "PAYMENT" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+              <h3 className="text-sm font-black text-emerald-400">PAYMENTCARD.JSX & 5-STAR DRIVER RATING</h3>
+              <div className="flex flex-wrap gap-2">
+                {["UPI / Zaldi Pay", "Zaldi Wallet", "Corporate Card ••4821", "Cash at Dropoff"].map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setPaymentMethod(m)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border ${
+                      paymentMethod === m ? "bg-emerald-500/20 border-emerald-400 text-emerald-300" : "bg-slate-950 border-slate-800 text-slate-300"
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-300">Rate Driver:</span>
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setRatingStars(s)}
+                    className={`text-xl ${s <= ratingStars ? "text-amber-400" : "text-slate-600"}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  if (activeOrder) handleAdvanceOrder(activeOrder.id);
+                  setBanner(`Paid $${activeOrder ? activeOrder.fare : calculatedFare} via ${paymentMethod} & submitted ${ratingStars}★ rating!`);
+                }}
+                className="w-full py-3 rounded-xl bg-emerald-400 text-slate-950 font-black text-sm"
+              >
+                PAY ${activeOrder ? activeOrder.fare : calculatedFare} & SUBMIT {ratingStars}★ RATING
+              </button>
+            </div>
+          )}
+
+          {customerTab === "RIDE_HISTORY" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-black text-white">PAGES/RIDEHISTORY ({orders.length} TRIPS)</h3>
+              {orders.map(o => (
+                <div key={o.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                  <div>
+                    <div className="text-sm font-bold text-white">{o.pickup} → {o.drop}</div>
+                    <div className="text-xs text-slate-400">#{o.id} • {o.cargo} ({o.weightKg}kg) • Status: <span className="text-emerald-400 font-bold">{o.status}</span></div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-black text-emerald-400">${o.fare}</div>
+                    <div className="text-[11px] text-slate-400">{o.distanceKm} km</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {customerTab === "PROFILE" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-black text-white">CUSTOMER PROFILE, OTP & 24/7 SUPPORT</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <input
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white"
+                />
+                <input
+                  value={customerPhone}
+                  onChange={e => setCustomerPhone(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white"
+                />
+              </div>
+              <div className="text-xs text-emerald-400 font-bold">✓ Customer OTP Verified • 24/7 Dispatch Support Active</div>
+            </div>
+          )}
+        </div>
+      );
+
+      const renderDriverApp = () => (
+        <div className="space-y-4">
+          {/* Driver App Header */}
+          <div className="bg-slate-900/90 border border-emerald-500/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 text-xs font-black rounded bg-emerald-400 text-slate-950">APPLICATION 2</span>
+                <h2 className="text-lg font-black text-white">ZALDI DRIVER APP</h2>
+                <code className="text-xs px-2 py-0.5 rounded bg-slate-800 text-emerald-400">apps/driver</code>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {activeDriver.name} • {activeDriver.vehicle} ({activeDriver.plate}) • Geohash [{activeDriver.geohash}]
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setDrivers(prev => prev.map(d => d.id === activeDriver.id ? { ...d, isOnline: !d.isOnline } : d));
+                }}
+                className={`px-3.5 py-2 rounded-xl font-black text-xs transition ${
+                  activeDriver.isOnline ? "bg-emerald-400 text-slate-950" : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                {activeDriver.isOnline ? "● ONLINE (5km GEO)" : "○ OFFLINE"}
+              </button>
+            </div>
+          </div>
+
+          {/* Driver App Dedicated 5-Tab Navigation Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800">
+            {[
+              ["DRIVER_HOME", "1. Driver Home"],
+              ["ACTIVE_TRIP", "2. Active Trip"],
+              ["EARNINGS", "3. Earnings"],
+              ["KYC_DOCS", "4. KYC & Docs"],
+              ["VEHICLE_PROFILE", "5. Vehicle & Profile"]
+            ].map(([code, label]) => (
+              <button
+                key={code}
+                onClick={() => { pushHistory(); setDriverTab(code); }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition ${
+                  driverTab === code
+                    ? "bg-emerald-400 text-slate-950 font-black"
+                    : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Incoming Order Offer Overlay (`BookingRequest.jsx`) */}
+          {activeOrder && activeOrder.status === "INCOMING" && (
+            <div className="bg-amber-400/15 border-2 border-amber-400 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-black text-amber-300">⚡ INCOMING ORDER PING (BOOKINGREQUEST.JSX • 15s SLA)</span>
+                <span className="text-lg font-black text-emerald-400">${activeOrder.fare}</span>
+              </div>
+              <div className="text-sm font-bold text-white">{activeOrder.pickup} → {activeOrder.drop} ({activeOrder.distanceKm} km)</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    handleAdvanceOrder(activeOrder.id);
+                    setDriverTab("ACTIVE_TRIP");
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-400 text-slate-950 font-black text-xs"
+                >
+                  ✓ ACCEPT RIDE & LOCK TRIP
+                </button>
+              </div>
+            </div>
+          )}
+
+          {driverTab === "DRIVER_HOME" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-black text-emerald-400">DRIVERMAP.JSX • SURGE HEATMAP & TELEMETRY</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-xs text-slate-400">Wallet Balance</div>
+                  <div className="text-lg font-black text-emerald-400">${activeDriver.wallet.toFixed(2)}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-xs text-slate-400">Driver Rating</div>
+                  <div className="text-lg font-black text-amber-400">★ {activeDriver.rating}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-xs text-slate-400">KYC Status</div>
+                  <div className="text-sm font-black text-emerald-400">{activeDriver.kycStatus}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {driverTab === "ACTIVE_TRIP" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-black text-white">NAVIGATIONCARD.JSX & TRIPCARD.JSX</h3>
+              {activeOrder ? (
+                <>
+                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="text-xs text-emerald-400 font-bold">STATUS: {activeOrder.status} • RIDER PIN: {activeOrder.riderPin}</div>
+                    <div className="text-sm font-bold text-white mt-1">{activeOrder.pickup} → {activeOrder.drop}</div>
+                    <div className="text-xs text-slate-400 mt-1">Passenger: {activeOrder.customerName} • Cargo: {activeOrder.cargo} ({activeOrder.weightKg}kg)</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRevertOrder(activeOrder.id)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs"
+                    >
+                      ← Prev Step
+                    </button>
+                    <button
+                      onClick={() => handleAdvanceOrder(activeOrder.id)}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-400 text-slate-950 font-black text-xs"
+                    >
+                      {activeOrder.status === "INCOMING" && "⚡ ACCEPT ORDER"}
+                      {activeOrder.status === "ACCEPTED" && "⚡ ARRIVED AT PICKUP"}
+                      {activeOrder.status === "ARRIVED_PICKUP" && `⚡ VERIFY PIN (${activeOrder.riderPin}) & START TRIP`}
+                      {activeOrder.status === "IN_PROGRESS" && `⚡ COMPLETE TRIP & SETTLE $${activeOrder.fare}`}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-slate-400">No active trip assigned. Trigger a booking from the Customer App or Admin App!</div>
+              )}
+            </div>
+          )}
+
+          {driverTab === "EARNINGS" && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-black text-emerald-400">EARNINGSCARD.JSX • SQLITE OFFLINE & SYNCED LEDGER</h3>
+                <button
+                  onClick={() => setLedger(prev => prev.map(item => ({ ...item, syncStatus: "SYNCED" })))}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-950 font-black text-xs"
+                >
+                  Sync Offline Logs
+                </button>
+              </div>
+              {ledger.map(item => (
+                <div key={item.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                  <div>
+                    <div className="text-sm font-bold text-white">{item.title}</div>
+                    <div className="text-xs text-slate-400">{item.route} • {item.method} • <span className="text-amber-400">{item.syncStatus}</span></div>
+                  </div>
+                  <div className="text-sm font-black text-emerald-400">+${item.amount.toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(driverTab === "KYC_DOCS" || driverTab === "VEHICLE_PROFILE") && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-black text-white">DRIVER KYC & ACTIVE FLEET VEHICLE</h3>
+              <p className="text-xs text-slate-300">Driver: {activeDriver.name} ({activeDriver.phone}) • Vehicle: {activeDriver.vehicle} • Plate: {activeDriver.plate} • KYC: {activeDriver.kycStatus}</p>
+            </div>
+          )}
+        </div>
+      );
+
+      const renderAdminApp = () => (
+        <div className="space-y-4">
+          {/* Admin App Header */}
+          <div className="bg-slate-900/90 border border-purple-500/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 text-xs font-black rounded bg-purple-400 text-slate-950">APPLICATION 3</span>
+                <h2 className="text-lg font-black text-white">ZALDI ADMIN APP</h2>
+                <code className="text-xs px-2 py-0.5 rounded bg-slate-800 text-purple-300">apps/admin</code>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {drivers.filter(d => d.isOnline).length}/{drivers.length} Drivers Online • {orders.length} Total Trips • GMV ${orders.reduce((s, o) => s + o.fare, 0).toFixed(2)}
+              </p>
+            </div>
+            <button
+              onClick={handleBookRide}
+              className="px-3.5 py-2 rounded-xl bg-purple-400 hover:bg-purple-300 text-slate-950 font-black text-xs transition"
+            >
+              ⚡ Dispatch Test Order
+            </button>
+          </div>
+
+          {/* Admin App Dedicated 5-Tab Navigation Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800">
+            {[
+              ["DASHBOARD", "1. Dashboard"],
+              ["BOOKINGS", "2. Bookings"],
+              ["DRIVERS", "3. Drivers & Fleet"],
+              ["MATCHING", "4. Pricing & Match"],
+              ["REPORTS", "5. Payments & Reports"]
+            ].map(([code, label]) => (
+              <button
+                key={code}
+                onClick={() => { pushHistory(); setAdminTab(code); }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition ${
+                  adminTab === code
+                    ? "bg-purple-400 text-slate-950 font-black"
+                    : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+            <h3 className="text-sm font-black text-purple-300">DRIVERTABLE.JSX • LIVE FLEET & KYC CONTROL</h3>
+            <div className="space-y-2">
+              {drivers.map(drv => (
+                <div key={drv.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap justify-between items-center gap-2">
+                  <div>
+                    <div className="text-sm font-bold text-white">{drv.name} ({drv.phone}) • {drv.vehicle}</div>
+                    <div className="text-xs text-slate-400">Plate: {drv.plate} • KYC: {drv.kycStatus} • Geohash: {drv.geohash}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setDrivers(prev => prev.map(d => d.id === drv.id ? { ...d, isOnline: !d.isOnline } : d))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        drv.isOnline ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-800 text-slate-400"
+                      }`}
+                    >
+                      {drv.isOnline ? "ONLINE" : "OFFLINE"}
+                    </button>
+                    <button
+                      onClick={() => setSelectedDriverId(drv.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        selectedDriverId === drv.id ? "bg-amber-400 text-slate-950 font-black" : "bg-slate-800 text-white"
+                      }`}
+                    >
+                      {selectedDriverId === drv.id ? "Active Receiver" : "Set Active"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-sm font-black text-amber-400 pt-2">BOOKINGTABLE.JSX • LIVE TRIPS ({orders.length})</h3>
+            <div className="space-y-2">
+              {orders.map(o => (
+                <div key={o.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap justify-between items-center gap-2">
+                  <div>
+                    <div className="text-sm font-bold text-white">#{o.id} • {o.customerName}: {o.pickup} → {o.drop}</div>
+                    <div className="text-xs text-slate-400">{o.cargo} ({o.weightKg}kg) • PIN: {o.riderPin} • Status: <span className="text-emerald-400 font-bold">{o.status}</span></div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-emerald-400">${o.fare}</span>
+                    {o.status !== "COMPLETED" && (
+                      <button
+                        onClick={() => handleAdvanceOrder(o.id)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs"
+                      >
+                        Advance →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="max-w-7xl mx-auto p-3 sm:p-5 space-y-4">
+          {/* Global Top 3-Application Switcher Bar */}
+          <header className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2 sticky top-2 z-50 shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {navStack.length > 0 && (
+                  <button
+                    onClick={navigatePrevious}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 font-black text-xs"
+                  >
+                    ← PREV
+                  </button>
+                )}
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                <h1 className="text-sm sm:text-base font-black tracking-tight text-white">
+                  ZALDI 3-APPLICATION PLATFORM
+                </h1>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => navigateToApp("CUSTOMER_APP")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
+                    activeApp === "CUSTOMER_APP" ? "bg-amber-400 text-slate-950" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  1. CUSTOMER APP
+                </button>
+                <button
+                  onClick={() => navigateToApp("DRIVER_APP")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
+                    activeApp === "DRIVER_APP" ? "bg-emerald-400 text-slate-950" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  2. DRIVER APP
+                </button>
+                <button
+                  onClick={() => navigateToApp("ADMIN_APP")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
+                    activeApp === "ADMIN_APP" ? "bg-purple-400 text-slate-950" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  3. ADMIN APP
+                </button>
+                <button
+                  onClick={() => navigateToApp("SPLIT_ALL_3")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
+                    activeApp === "SPLIT_ALL_3" ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-cyan-300 hover:bg-slate-700"
+                  }`}
+                >
+                  ⊞ ALL 3 APPS SIDE-BY-SIDE
+                </button>
+              </div>
+            </div>
+
+            {banner && (
+              <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-emerald-300 font-medium flex justify-between items-center">
+                <span>{banner}</span>
+                <button onClick={() => setBanner("")} className="text-slate-500 hover:text-white ml-2">✕</button>
+              </div>
+            )}
+          </header>
+
+          {/* Render Selected Application or All 3 Side-by-Side */}
+          {activeApp === "CUSTOMER_APP" && renderCustomerApp()}
+          {activeApp === "DRIVER_APP" && renderDriverApp()}
+          {activeApp === "ADMIN_APP" && renderAdminApp()}
+          {activeApp === "SPLIT_ALL_3" && (
+            <div className="grid lg:grid-cols-3 gap-4 items-start">
+              <div>{renderCustomerApp()}</div>
+              <div>{renderDriverApp()}</div>
+              <div>{renderAdminApp()}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<ZaldiSuiteApp />);
+  </script>
+</body>
+</html>

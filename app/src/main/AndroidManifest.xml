@@ -28,11 +28,11 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.MyApplication">
 
-        <!-- Application 1: Zaldi Customer App -->
+        <!-- Primary Entry Point: Zaldi 3-App Suite (Customer App, Driver App, Admin App) -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/customer_app_name"
+            android:label="@string/app_name"
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -40,29 +40,19 @@
             </intent-filter>
         </activity>
 
-        <!-- Application 2: Zaldi Driver App -->
+        <!-- Standalone Activity #2: Zaldi Driver App -->
         <activity
             android:name=".DriverAppActivity"
             android:exported="true"
             android:label="@string/driver_app_name"
-            android:theme="@style/Theme.MyApplication">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.MyApplication" />
 
-        <!-- Application 3: Zaldi Admin App -->
+        <!-- Standalone Activity #3: Zaldi Admin App -->
         <activity
             android:name=".AdminAppActivity"
             android:exported="true"
             android:label="@string/admin_app_name"
-            android:theme="@style/Theme.MyApplication">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.MyApplication" />
 
         <!-- Foreground GPS Tracker Service (services/location_service) -->
         <service

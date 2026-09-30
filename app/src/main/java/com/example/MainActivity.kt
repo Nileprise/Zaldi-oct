@@ -611,7 +611,34 @@ fun ZaldiDriverRootApp(
                                 onlineDriversCount = allDrivers.count { it.isOnline },
                                 activeOrder = activeOrder,
                                 totalOrdersCount = allOrders.size,
-                                onOpenAppInPlace = { appId -> viewModel.selectApplication(appId) }
+                                onOpenAppInPlace = { appId -> viewModel.selectApplication(appId) },
+                                onInstantCustomerBook = {
+                                    viewModel.bookCustomCustomerRide(
+                                        context = context,
+                                        customerName = "Vikram Aditya (Customer App)",
+                                        pickupAddress = "Clock Tower Center, Nalgonda",
+                                        dropoffAddress = "SLN Terminus, Gachibowli, Hyderabad",
+                                        cargoDetails = "Fragile Load",
+                                        cargoWeightKg = 320,
+                                        vehicleTier = "ZALDI_VAN",
+                                        guaranteedFare = 145.00,
+                                        distanceKm = 105.0,
+                                        pickupLat = 17.0500,
+                                        pickupLng = 79.2667,
+                                        dropoffLat = 17.4401,
+                                        dropoffLng = 78.3489
+                                    )
+                                },
+                                onAdvanceActiveOrder = { order ->
+                                    if (order.status == "INCOMING") {
+                                        viewModel.acceptIncomingOrder(order)
+                                    } else {
+                                        viewModel.advanceOrderLifecycle(order)
+                                    }
+                                },
+                                onRevertActiveOrder = { order ->
+                                    viewModel.revertOrderToPreviousStep(order)
+                                }
                             )
                         }
                     }

@@ -1,0 +1,10 @@
+{
+  "name": "zaldi-3-app-suite",
+  "version": "1.0.0",
+  "description": "Zaldi 3-Application Suite: 1. Customer App, 2. Driver App, and 3. Admin App (Android + Web)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

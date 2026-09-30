@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Zaldi 3-App Suite (Customer + Driver + Admin) in Browser",
+      "type": "shell",
+      "command": "node server.js",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Build Android APK (Gradle)",
+      "type": "shell",
+      "command": "gradle assembleDebug",
+      "group": "build"
+    }
+  ]
+}
