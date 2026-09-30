@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zaldi Admin Panel — Active Trips & Real-Time Driver Availability</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Offline-resilient Tailwind utility fallback for Android WebView */
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      background-color: #0B0F17;
+      color: #F8FAFC;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .card-surface {
+      background-color: #131B2E;
+      border: 1px solid #1E293B;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-inner {
+      background-color: #0B0F17;
+      border: 1px solid #1E293B;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .badge-amber {
+      background: rgba(245, 158, 11, 0.18);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .badge-emerald {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .badge-sky {
+      background: rgba(56, 189, 248, 0.18);
+      color: #38BDF8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    .badge-slate {
+      background: rgba(100, 116, 139, 0.25);
+      color: #CBD5E1;
+      border: 1px solid rgba(100, 116, 139, 0.4);
+    }
+    .btn-primary {
+      background-color: #F59E0B;
+      color: #0B0F17;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-emerald {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .btn-chip {
+      background-color: #1E293B;
+      color: #CBD5E1;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-chip.active {
+      background-color: #F59E0B;
+      color: #0B0F17;
+      border-color: #F59E0B;
+    }
+    .flex-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      width: 100%;
+      box-sizing: border-box;
+      background-color: #0B0F17;
+      border: 1px solid #334155;
+      color: #F8FAFC;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .text-amber { color: #F59E0B; }
+    .text-emerald { color: #10B981; }
+    .text-muted { color: #94A3B8; font-size: 12px; }
+    .mono { font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div id="root" class="admin-container"></div>
+
+  <script>
+    // Self-contained React-style state store + declarative renderer synced with Android SQLite Bridge
+    const state = {
+      tripFilter: 'ALL',
+      driverFilter: 'ALL',
+      searchQuery: '',
+      lastSync: new Date().toLocaleTimeString(),
+      drivers: [
+        {
+          id: 'd4f8a920-7c1b-4e9a-8b12-9042zaldi001',
+          name: 'Mateo Vance',
+          phone: '+1 (415) 890-4210',
+          kycStatus: 'VERIFIED',
+          isOnline: true,
+          lat: 37.7897,
+          lng: -122.4014,
+          geohash: '9Q8YYK8',
+          tier: 'ZALDI_EV',
+          plate: 'ZLD-904E',
+          vehicle: '2025 Tesla Model Y Long Range',
+          wallet: 428.60,
+          rating: 4.94
+        },
+        {
+          id: 'd7c1b890-2a4e-4f11-9c02-9042zaldi002',
+          name: 'Karthik Rao',
+          phone: '+91 98480-55120',
+          kycStatus: 'VERIFIED',
+          isOnline: true,
+          lat: 17.0500,
+          lng: 79.2667,
+          geohash: 'TEPG1V4',
+          tier: 'ZALDI_VAN',
+          plate: 'TS05-Z891',
+          vehicle: '2025 Tata Ace EV Cargo',
+          wallet: 2450.00,
+          rating: 4.96
+        },
+        {
+          id: 'd9e3a112-6b5c-4d88-8a19-9042zaldi003',
+          name: 'Priya Nair',
+          phone: '+91 90001-88412',
+          kycStatus: 'VERIFIED',
+          isOnline: true,
+          lat: 17.4401,
+          lng: 78.3489,
+          geohash: 'TEJ4UX2',
+          tier: 'ZALDI_PRIME',
+          plate: 'TS09-EV402',
+          vehicle: '2025 Mahindra Zor Grand EV',
+          wallet: 1190.40,
+          rating: 4.98
+        }
+      ],
+      trips: [
+        {
+          id: 't9920f11-88a1-4b22-9c33-trip00009920',
+          customerName: 'Vikram Aditya (Nalgonda Hub)',
+          status: 'IN_PROGRESS',
+          pickupAddress: 'Clock Tower Center, Nalgonda',
+          dropoffAddress: 'SLN Terminus, Gachibowli, Hyderabad',
+          cargoDetails: 'Fragile Load',
+          cargoWeightKg: 320,
+          tierCategory: 'ZALDI_VAN',
+          distanceKm: 105.0,
+          finalFare: 145.00
+        },
+        {
+          id: 't8841a00-11b2-4c33-9d44-trip00008841',
+          customerName: 'Elena Rostova',
+          status: 'COMPLETED',
+          pickupAddress: '450 Mission St, Salesforce Transit Tower',
+          dropoffAddress: 'Pier 15, Embarcadero Waterfront',
+          cargoDetails: 'Cold Chain Biotech',
+          cargoWeightKg: 85,
+          tierCategory: 'ZALDI_EV',
+          distanceKm: 3.8,
+          finalFare: 28.20
+        }
+      ]
+    };
+
+    window.updateZaldiAdminState = function(payload) {
+      if (payload.drivers && payload.drivers.length > 0) {
+        state.drivers = payload.drivers;
+      }
+      if (payload.trips && payload.trips.length > 0) {
+        state.trips = payload.trips;
+      }
+      state.lastSync = new Date().toLocaleTimeString();
+      renderApp();
+    };
+
+    window.setTripFilter = function(f) {
+      state.tripFilter = f;
+      renderApp();
+    };
+
+    window.setDriverFilter = function(f) {
+      state.driverFilter = f;
+      renderApp();
+    };
+
+    window.onSearchChange = function(val) {
+      state.searchQuery = val;
+      renderApp();
+    };
+
+    window.triggerDispatchOrder = function() {
+      if (window.ZaldiAdminBridge && window.ZaldiAdminBridge.dispatchNewOrder) {
+        window.ZaldiAdminBridge.dispatchNewOrder();
+      } else {
+        state.trips.unshift({
+          id: 't' + Math.floor(1000 + Math.random() * 8999) + '-live-ping',
+          customerName: 'Vikram Aditya (Web Admin Dispatch)',
+          status: 'INCOMING',
+          pickupAddress: 'Clock Tower Center, Nalgonda',
+          dropoffAddress: 'SLN Terminus, Gachibowli, Hyderabad',
+          cargoDetails: 'Fragile Load',
+          cargoWeightKg: 320,
+          tierCategory: 'ZALDI_VAN',
+          distanceKm: 105.0,
+          finalFare: 145.00
+        });
+        renderApp();
+      }
+    };
+
+    window.toggleDriverAvailability = function(driverId) {
+      if (window.ZaldiAdminBridge && window.ZaldiAdminBridge.toggleDriverOnline) {
+        window.ZaldiAdminBridge.toggleDriverOnline(driverId);
+      } else {
+        state.drivers = state.drivers.map(function(d) {
+          return d.id === driverId ? Object.assign({}, d, { isOnline: !d.isOnline }) : d;
+        });
+        renderApp();
+      }
+    };
+
+    window.advanceTrip = function(tripId) {
+      if (window.ZaldiAdminBridge && window.ZaldiAdminBridge.advanceTripStatus) {
+        window.ZaldiAdminBridge.advanceTripStatus(tripId);
+      } else {
+        var order = ['INCOMING', 'ACCEPTED', 'ARRIVED_PICKUP', 'IN_PROGRESS', 'COMPLETED'];
+        state.trips = state.trips.map(function(t) {
+          if (t.id !== tripId) return t;
+          var idx = order.indexOf(t.status);
+          var next = (idx >= 0 && idx < order.length - 1) ? order[idx + 1] : 'COMPLETED';
+          return Object.assign({}, t, { status: next });
+        });
+        renderApp();
+      }
+    };
+
+    function getStatusBadge(status) {
+      if (status === 'INCOMING') return 'badge badge-amber';
+      if (status === 'IN_PROGRESS') return 'badge badge-emerald';
+      if (status === 'ACCEPTED' || status === 'ARRIVED_PICKUP') return 'badge badge-sky';
+      return 'badge badge-slate';
+    }
+
+    function renderApp() {
+      var onlineCount = state.drivers.filter(function(d) { return d.isOnline; }).length;
+      var activeTripsCount = state.trips.filter(function(t) {
+        return ['INCOMING', 'ACCEPTED', 'ARRIVED_PICKUP', 'IN_PROGRESS'].indexOf(t.status) !== -1;
+      }).length;
+      var totalGmv = state.trips.reduce(function(sum, t) { return sum + Number(t.finalFare || 0); }, 0);
+
+      var filteredTrips = state.trips.filter(function(t) {
+        var isActive = ['INCOMING', 'ACCEPTED', 'ARRIVED_PICKUP', 'IN_PROGRESS'].indexOf(t.status) !== -1;
+        if (state.tripFilter === 'ACTIVE' && !isActive) return false;
+        if (state.tripFilter === 'INCOMING' && t.status !== 'INCOMING') return false;
+        if (state.tripFilter === 'COMPLETED' && t.status !== 'COMPLETED') return false;
+        if (state.searchQuery.trim() !== '') {
+          var q = state.searchQuery.toLowerCase();
+          return (
+            t.id.toLowerCase().indexOf(q) !== -1 ||
+            t.customerName.toLowerCase().indexOf(q) !== -1 ||
+            t.pickupAddress.toLowerCase().indexOf(q) !== -1 ||
+            t.dropoffAddress.toLowerCase().indexOf(q) !== -1
+          );
+        }
+        return true;
+      });
+
+      var filteredDrivers = state.drivers.filter(function(d) {
+        if (state.driverFilter === 'ONLINE' && !d.isOnline) return false;
+        if (state.driverFilter === 'OFFLINE' && d.isOnline) return false;
+        return true;
+      });
+
+      var html = '';
+      html += '<div class="card-surface">';
+      html += '  <div class="flex-between">';
+      html += '    <div>';
+      html += '      <div style="display:flex;align-items:center;gap:8px;">';
+      html += '        <span style="width:10px;height:10px;border-radius:50%;background:#10B981;display:inline-block;"></span>';
+      html += '        <strong style="font-size:16px;letter-spacing:0.4px;">ZALDI WEB ADMIN PANEL</strong>';
+      html += '        <span class="badge badge-emerald">REACT + TAILWIND</span>';
+      html += '      </div>';
+      html += '      <div class="text-muted" style="margin-top:4px;">Live SQLite & Redis GEORADIUS Telemetry • Synced ' + state.lastSync + '</div>';
+      html += '    </div>';
+      html += '    <button class="btn-primary" onclick="window.triggerDispatchOrder()">+ DISPATCH TRIP (ZALDI_PING)</button>';
+      html += '  </div>';
+      html += '</div>';
+
+      html += '<div class="kpi-grid">';
+      html += '  <div class="card-surface" style="margin-bottom:0;">';
+      html += '    <div class="text-muted mono">ACTIVE TRIPS</div>';
+      html += '    <div style="font-size:24px;font-weight:900;margin-top:4px;" class="text-amber">' + activeTripsCount + ' <span class="text-muted">/ ' + state.trips.length + '</span></div>';
+      html += '  </div>';
+      html += '  <div class="card-surface" style="margin-bottom:0;">';
+      html += '    <div class="text-muted mono">DRIVERS ONLINE</div>';
+      html += '    <div style="font-size:24px;font-weight:900;margin-top:4px;" class="text-emerald">' + onlineCount + ' <span class="text-muted">/ ' + state.drivers.length + '</span></div>';
+      html += '  </div>';
+      html += '  <div class="card-surface" style="margin-bottom:0;">';
+      html += '    <div class="text-muted mono">DISPATCH GMV</div>';
+      html += '    <div style="font-size:24px;font-weight:900;margin-top:4px;">$' + totalGmv.toFixed(2) + '</div>';
+      html += '  </div>';
+      html += '</div>';
+
+      // Active Trips Card
+      html += '<div class="card-surface">';
+      html += '  <div class="flex-between">';
+      html += '    <strong>ACTIVE TRIPS MONITOR (' + filteredTrips.length + ')</strong>';
+      html += '    <div style="display:flex;gap:6px;">';
+      ['ALL', 'ACTIVE', 'INCOMING', 'COMPLETED'].forEach(function(f) {
+        var cls = state.tripFilter === f ? 'btn-chip active' : 'btn-chip';
+        html += '<button class="' + cls + '" onclick="window.setTripFilter(\'' + f + '\')">' + f + '</button>';
+      });
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <input class="search-input" placeholder="Filter trips by customer, UUID, pickup or dropoff..." value="' + state.searchQuery.replace(/"/g, '&quot;') + '" oninput="window.onSearchChange(this.value)" />';
+
+      filteredTrips.forEach(function(t) {
+        html += '<div class="card-inner">';
+        html += '  <div class="flex-between">';
+        html += '    <div><span class="' + getStatusBadge(t.status) + '">' + t.status + '</span> <span class="mono text-muted">#' + t.id.slice(0, 8) + '…</span> <span class="badge badge-amber">' + (t.cargoDetails || 'Cargo') + ' (' + (t.cargoWeightKg || 120) + 'kg)</span></div>';
+        html += '    <strong class="text-emerald" style="font-size:16px;">$' + Number(t.finalFare).toFixed(2) + '</strong>';
+        html += '  </div>';
+        html += '  <div style="margin-top:8px;font-weight:700;font-size:14px;">' + t.customerName + '</div>';
+        html += '  <div class="text-muted" style="margin-top:4px;"><span class="text-emerald mono">IN:</span> ' + t.pickupAddress + '</div>';
+        html += '  <div class="text-muted" style="margin-top:2px;"><span class="text-amber mono">OUT:</span> ' + t.dropoffAddress + '</div>';
+        html += '  <div class="flex-between" style="margin-top:10px;padding-top:8px;border-top:1px solid #1E293B;">';
+        html += '    <span class="text-muted mono">' + t.distanceKm + ' km • ' + (t.tierCategory || 'ZALDI_EV') + '</span>';
+        if (t.status !== 'COMPLETED') {
+          html += '  <button class="btn-emerald" onclick="window.advanceTrip(\'' + t.id + '\')">Advance Trip Status →</button>';
+        }
+        html += '  </div>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Real-Time Driver Availability Card
+      html += '<div class="card-surface">';
+      html += '  <div class="flex-between">';
+      html += '    <strong>REAL-TIME DRIVER AVAILABILITY (' + filteredDrivers.length + ')</strong>';
+      html += '    <div style="display:flex;gap:6px;">';
+      ['ALL', 'ONLINE', 'OFFLINE'].forEach(function(f) {
+        var cls = state.driverFilter === f ? 'btn-chip active' : 'btn-chip';
+        html += '<button class="' + cls + '" onclick="window.setDriverFilter(\'' + f + '\')">' + f + '</button>';
+      });
+      html += '    </div>';
+      html += '  </div>';
+
+      filteredDrivers.forEach(function(d) {
+        html += '<div class="card-inner">';
+        html += '  <div class="flex-between">';
+        html += '    <div>';
+        html += '      <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + (d.isOnline ? '#10B981' : '#64748B') + ';margin-right:6px;"></span>';
+        html += '      <strong>' + d.name + '</strong> <span class="badge badge-amber">★ ' + Number(d.rating).toFixed(2) + '</span>';
+        html += '      <div class="text-muted" style="margin-top:3px;">' + d.phone + ' • KYC: <span class="text-emerald mono">' + d.kycStatus + '</span></div>';
+        html += '    </div>';
+        html += '    <button class="btn-emerald" onclick="window.toggleDriverAvailability(\'' + d.id + '\')">' + (d.isOnline ? '● ONLINE (Toggle)' : '○ OFFLINE (Go Live)') + '</button>';
+        html += '  </div>';
+        html += '  <div class="flex-between text-muted mono" style="margin-top:8px;padding-top:8px;border-top:1px solid #1E293B;">';
+        html += '    <span>' + d.vehicle + ' (' + d.plate + ')</span>';
+        html += '    <span class="text-amber">[' + d.geohash + '] ' + Number(d.lat).toFixed(3) + ', ' + Number(d.lng).toFixed(3) + '</span>';
+        html += '  </div>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      document.getElementById('root').innerHTML = html;
+    }
+
+    renderApp();
+  </script>
+</body>
+</html>

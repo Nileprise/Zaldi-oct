@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Zaldi Driver</string>
+    <string name="customer_app_name">Zaldi Customer</string>
+    <string name="driver_app_name">Zaldi Driver</string>
+    <string name="admin_app_name">Zaldi Admin</string>
+    <string name="notification_channel_name">Zaldi Active Dispatch GPS</string>
+    <string name="notification_channel_desc">Foreground GPS telemetry for live order matching and route tracking</string>
+    <string name="notification_title_online">Zaldi Driver • Online &amp; Scanning</string>
+    <string name="notification_text_tracking">Broadcasting live Geohash telemetry to Zaldi Dispatch Engine</string>
+    <string name="cd_online_toggle">Toggle driver online or offline status</string>
+    <string name="cd_navigation_icon">Navigation direction indicator</string>
+    <string name="cd_vehicle_icon">Vehicle category icon</string>
+    <string name="cd_kyc_status">KYC verification status icon</string>
+</resources>

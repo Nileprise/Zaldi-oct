@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer hexagon badge frame inside 66dp safe zone (21..87) -->
+    <path
+        android:fillColor="#161F30"
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="2.2"
+        android:pathData="M54,24 L80,39 L80,69 L54,84 L28,69 L28,39 Z" />
+    <!-- Emerald live dispatch pulse arc -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,30 L74,41.5 L68,41.5 L54,33.5 L40,41.5 L34,41.5 Z" />
+    <!-- Bold Zaldi 'Z' + Navigation Arrow Silhouette -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M38,42 H70 L70,48.5 L49.5,62 H70 V69 H38 V62.5 L58.5,49 H38 Z" />
+    <!-- Center GPS Beacon Dot -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,75m-3.5,0a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0" />
+</vector>
